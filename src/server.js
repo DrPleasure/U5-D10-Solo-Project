@@ -20,7 +20,7 @@ server.use(express.json())
 
 // ****************************** ENDPOINTS ****************************
 server.use("/users", usersRouter)
-server.use("/accomodations", accomodationsRouter)
+server.use("/accommodations", accomodationsRouter)
 
 // *************************** ERROR HANDLERS **************************
 server.use(notFoundErrorHandler)

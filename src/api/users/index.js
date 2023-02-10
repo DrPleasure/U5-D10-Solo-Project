@@ -5,6 +5,9 @@ import express from "express"
 // import { createAccessToken } from "../../lib/auth/tools.js"
 import UsersModel from "./model.js"
 import jwt from "jsonwebtoken"
+import AccomodationsModel from "../accomodations/model.js"
+import { basicAuthMiddleware } from "../../lib/auth/basicAuth.js"
+
 
 const usersRouter = express.Router()
 
@@ -104,24 +107,20 @@ usersRouter.post("/register", async (req, res) => {
 }
 });
   
-  usersRouter.post("/login", async (req, res) => {
+usersRouter.post("/login", async (req, res) => {
     const { email, password } = req.body;
-  
-    // Validate email and password
-    // ...
   
     try {
       // Connect to the database
   
-      // Find the user in the database
-      const user = await UsersModel.findOne({ email });
+      // Use the `checkCredentials` method to validate the email and password
+      const user = await UsersModel.checkCredentials(email, password);
   
-      // Check if the user exists and the password is correct
-      if (!user || user.password !== password) {
+      if (!user) {
         return res.status(401).json({ error: "Email or password is incorrect." });
       }
   
-      // Get the user's role from the database
+      // Get the user's role
       let role = user.role;
       if (role !== "Host" && role !== "Guest") {
         role = "Guest";
@@ -130,13 +129,12 @@ usersRouter.post("/register", async (req, res) => {
       // Generate JWT token
       const token = jwt.sign({ email, role }, secretKey, { expiresIn: "1h" });
   
-    
-  
       return res.json({ token });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
   });
+
   
   // Add this middleware to protect resource endpoints
   function authenticateToken(req, res, next) {
@@ -155,9 +153,48 @@ usersRouter.post("/register", async (req, res) => {
     }
   }
   
-  usersRouter.get("/protected", authenticateToken, (req, res) => {
+  usersRouter.get("/protected/resource", basicAuthMiddleware, (req, res) => {
     return res.json({ message: "Welcome to the protected resource!" });
   });
+
+
+// ADDS /me/accomodations endpoint
+
+usersRouter.get("/me/accommodations", basicAuthMiddleware, async (req, res) => {
+    console.log("Accessing GET /me/accommodations endpoint");
+    const user = req.user;
+    console.log("User:", user);
+    try {
+      const accommodations = await AccomodationsModel.find({ host: user._id });
+      console.log("Accommodations:", accommodations);
+      res.status(200).send(accommodations);
+    } catch (error) {
+      console.error("Error:", error.message);
+      res.status(500).send({ error: error.message });
+    }
+  });
+  
+  usersRouter.get("/me/myself", basicAuthMiddleware, async (req, res) => {
+    console.log("Accessing GET /me endpoint");
+    const user = req.user;
+    console.log("User:", user);
+    try {
+    
+      res.status(200).send({
+        id: user._id,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        password: "Please go away mister Hackerman, nothing to see here"
+       
+      })
+    } catch (error) {
+      console.error("Error:", error.message);
+      res.status(500).send({ error: error.message });
+    }
+  });
+  
   
 
 export default usersRouter
